@@ -7,4 +7,4 @@ Um Exportierte Modelle in Unity zu verwenden muss der komplette "Importer"-Ordne
 Obwohl der Import reibungslos funktioniert bieten die importierten Modelle nicht die optimale Performance.
 
 Eigene Importer für andere Engines und Programmiersprachen zu schreiben sollte nicht weiter schwierig zu sein. Die vom Editor erstellten UVG-Dateien lassen sich mit einem normalen Texteditor öffnen und enthalten Zeilen mit den folgenden Angaben:
-<x>,<y>,<z>:<Farbe>:<sichtbare Seiten>;
+[x],[y],[z]:[Farbe]:[sichtbare Seiten];
