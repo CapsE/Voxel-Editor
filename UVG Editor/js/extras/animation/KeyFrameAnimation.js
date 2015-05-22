@@ -6,11 +6,11 @@
  * @author erik kitson
  */
 
-THREE.KeyFrameAnimation = function ( root, data ) {
+THREE.KeyFrameAnimation = function ( data ) {
 
-	this.root = root;
-	this.data = THREE.AnimationHandler.get( data );
-	this.hierarchy = THREE.AnimationHandler.parse( root );
+	this.root = data.node;
+	this.data = THREE.AnimationHandler.init( data );
+	this.hierarchy = THREE.AnimationHandler.parse( this.root );
 	this.currentTime = 0;
 	this.timeScale = 0.001;
 	this.isPlaying = false;
@@ -27,7 +27,7 @@ THREE.KeyFrameAnimation = function ( root, data ) {
 
 		if ( keys.length && sids ) {
 
-			for ( var s = 0; s < sids.length; s++ ) {
+			for ( var s = 0; s < sids.length; s ++ ) {
 
 				var sid = sids[ s ],
 					next = this.getNextKeyWith( sid, h, 0 );
@@ -50,227 +50,192 @@ THREE.KeyFrameAnimation = function ( root, data ) {
 
 };
 
-// Play
+THREE.KeyFrameAnimation.prototype = {
 
-THREE.KeyFrameAnimation.prototype.play = function ( startTime ) {
+	constructor: THREE.KeyFrameAnimation,
 
-	this.currentTime = startTime !== undefined ? startTime : 0;
+	play: function ( startTime ) {
 
-	if ( this.isPlaying === false ) {
+		this.currentTime = startTime !== undefined ? startTime : 0;
 
-		this.isPlaying = true;
+		if ( this.isPlaying === false ) {
 
-		// reset key cache
+			this.isPlaying = true;
 
-		var h, hl = this.hierarchy.length,
-			object,
-			node;
+			// reset key cache
 
-		for ( h = 0; h < hl; h++ ) {
+			var h, hl = this.hierarchy.length,
+				object,
+				node;
 
-			object = this.hierarchy[ h ];
-			node = this.data.hierarchy[ h ];
+			for ( h = 0; h < hl; h ++ ) {
 
-			if ( node.animationCache === undefined ) {
+				object = this.hierarchy[ h ];
+				node = this.data.hierarchy[ h ];
 
-				node.animationCache = {};
-				node.animationCache.prevKey = null;
-				node.animationCache.nextKey = null;
-				node.animationCache.originalMatrix = object instanceof THREE.Bone ? object.skinMatrix : object.matrix;
+				if ( node.animationCache === undefined ) {
+
+					node.animationCache = {};
+					node.animationCache.prevKey = null;
+					node.animationCache.nextKey = null;
+					node.animationCache.originalMatrix = object.matrix;
+
+				}
+
+				var keys = this.data.hierarchy[h].keys;
+
+				if (keys.length) {
+
+					node.animationCache.prevKey = keys[ 0 ];
+					node.animationCache.nextKey = keys[ 1 ];
+
+					this.startTime = Math.min( keys[0].time, this.startTime );
+					this.endTime = Math.max( keys[keys.length - 1].time, this.endTime );
+
+				}
 
 			}
 
-			var keys = this.data.hierarchy[h].keys;
-
-			if (keys.length) {
-
-				node.animationCache.prevKey = keys[ 0 ];
-				node.animationCache.nextKey = keys[ 1 ];
-
-				this.startTime = Math.min( keys[0].time, this.startTime );
-				this.endTime = Math.max( keys[keys.length - 1].time, this.endTime );
-
-			}
+			this.update( 0 );
 
 		}
 
-		this.update( 0 );
+		this.isPaused = false;
 
-	}
+		THREE.AnimationHandler.play( this );
 
-	this.isPaused = false;
+	},
 
-	THREE.AnimationHandler.addToUpdate( this );
+	stop: function () {
 
-};
+		this.isPlaying = false;
+		this.isPaused  = false;
 
+		THREE.AnimationHandler.stop( this );
 
+		// reset JIT matrix and remove cache
 
-// Pause
+		for ( var h = 0; h < this.data.hierarchy.length; h ++ ) {
 
-THREE.KeyFrameAnimation.prototype.pause = function() {
+			var obj = this.hierarchy[ h ];
+			var node = this.data.hierarchy[ h ];
 
-	if( this.isPaused ) {
+			if ( node.animationCache !== undefined ) {
 
-		THREE.AnimationHandler.addToUpdate( this );
-
-	} else {
-
-		THREE.AnimationHandler.removeFromUpdate( this );
-
-	}
-
-	this.isPaused = !this.isPaused;
-
-};
-
-
-// Stop
-
-THREE.KeyFrameAnimation.prototype.stop = function() {
-
-	this.isPlaying = false;
-	this.isPaused  = false;
-
-	THREE.AnimationHandler.removeFromUpdate( this );
-
-	// reset JIT matrix and remove cache
-
-	for ( var h = 0; h < this.data.hierarchy.length; h++ ) {
-		
-		var obj = this.hierarchy[ h ];
-		var node = this.data.hierarchy[ h ];
-
-		if ( node.animationCache !== undefined ) {
-
-			var original = node.animationCache.originalMatrix;
-
-			if( obj instanceof THREE.Bone ) {
-
-				original.copy( obj.skinMatrix );
-				obj.skinMatrix = original;
-
-			} else {
+				var original = node.animationCache.originalMatrix;
 
 				original.copy( obj.matrix );
 				obj.matrix = original;
 
-			}
+				delete node.animationCache;
 
-			delete node.animationCache;
+			}
 
 		}
 
-	}
+	},
 
-};
+	update: function ( delta ) {
 
+		if ( this.isPlaying === false ) return;
 
-// Update
+		this.currentTime += delta * this.timeScale;
 
-THREE.KeyFrameAnimation.prototype.update = function ( delta ) {
+		//
 
-	if ( this.isPlaying === false ) return;
+		var duration = this.data.length;
 
-	this.currentTime += delta * this.timeScale;
+		if ( this.loop === true && this.currentTime > duration ) {
 
-	//
+			this.currentTime %= duration;
 
-	var duration = this.data.length;
+		}
 
-	if ( this.loop === true && this.currentTime > duration ) {
+		this.currentTime = Math.min( this.currentTime, duration );
 
-		this.currentTime %= duration;
+		for ( var h = 0, hl = this.hierarchy.length; h < hl; h ++ ) {
 
-	}
+			var object = this.hierarchy[ h ];
+			var node = this.data.hierarchy[ h ];
 
-	this.currentTime = Math.min( this.currentTime, duration );
-
-	for ( var h = 0, hl = this.hierarchy.length; h < hl; h++ ) {
-
-		var object = this.hierarchy[ h ];
-		var node = this.data.hierarchy[ h ];
-
-		var keys = node.keys,
-			animationCache = node.animationCache;
+			var keys = node.keys,
+				animationCache = node.animationCache;
 
 
-		if ( keys.length ) {
+			if ( keys.length ) {
 
-			var prevKey = animationCache.prevKey;
-			var nextKey = animationCache.nextKey;
+				var prevKey = animationCache.prevKey;
+				var nextKey = animationCache.nextKey;
 
-			if ( nextKey.time <= this.currentTime ) {
+				if ( nextKey.time <= this.currentTime ) {
 
-				while ( nextKey.time < this.currentTime && nextKey.index > prevKey.index ) {
+					while ( nextKey.time < this.currentTime && nextKey.index > prevKey.index ) {
 
-					prevKey = nextKey;
-					nextKey = keys[ prevKey.index + 1 ];
+						prevKey = nextKey;
+						nextKey = keys[ prevKey.index + 1 ];
+
+					}
+
+					animationCache.prevKey = prevKey;
+					animationCache.nextKey = nextKey;
 
 				}
 
-				animationCache.prevKey = prevKey;
-				animationCache.nextKey = nextKey;
+				if ( nextKey.time >= this.currentTime ) {
+
+					prevKey.interpolate( nextKey, this.currentTime );
+
+				} else {
+
+					prevKey.interpolate( nextKey, nextKey.time );
+
+				}
+
+				this.data.hierarchy[ h ].node.updateMatrix();
+				object.matrixWorldNeedsUpdate = true;
 
 			}
 
-			if ( nextKey.time >= this.currentTime ) {
+		}
 
-				prevKey.interpolate( nextKey, this.currentTime );
+	},
 
-			} else {
+	getNextKeyWith: function ( sid, h, key ) {
 
-				prevKey.interpolate( nextKey, nextKey.time );
+		var keys = this.data.hierarchy[ h ].keys;
+		key = key % keys.length;
+
+		for ( ; key < keys.length; key ++ ) {
+
+			if ( keys[ key ].hasTarget( sid ) ) {
+
+				return keys[ key ];
 
 			}
 
-			this.data.hierarchy[ h ].node.updateMatrix();
-			object.matrixWorldNeedsUpdate = true;
+		}
+
+		return keys[ 0 ];
+
+	},
+
+	getPrevKeyWith: function ( sid, h, key ) {
+
+		var keys = this.data.hierarchy[ h ].keys;
+		key = key >= 0 ? key : key + keys.length;
+
+		for ( ; key >= 0; key -- ) {
+
+			if ( keys[ key ].hasTarget( sid ) ) {
+
+				return keys[ key ];
+
+			}
 
 		}
 
-	}
-
-};
-
-// Get next key with
-
-THREE.KeyFrameAnimation.prototype.getNextKeyWith = function( sid, h, key ) {
-
-	var keys = this.data.hierarchy[ h ].keys;
-	key = key % keys.length;
-
-	for ( ; key < keys.length; key++ ) {
-
-		if ( keys[ key ].hasTarget( sid ) ) {
-
-			return keys[ key ];
-
-		}
+		return keys[ keys.length - 1 ];
 
 	}
-
-	return keys[ 0 ];
-
-};
-
-// Get previous key with
-
-THREE.KeyFrameAnimation.prototype.getPrevKeyWith = function( sid, h, key ) {
-
-	var keys = this.data.hierarchy[ h ].keys;
-	key = key >= 0 ? key : key + keys.length;
-
-	for ( ; key >= 0; key-- ) {
-
-		if ( keys[ key ].hasTarget( sid ) ) {
-
-			return keys[ key ];
-
-		}
-
-	}
-
-	return keys[ keys.length - 1 ];
 
 };
