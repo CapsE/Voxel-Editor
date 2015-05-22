@@ -52,14 +52,14 @@
 			getImageData = true;
 			render();
 			
-			var xmlhttp = new XMLHttpRequest();
+			/*var xmlhttp = new XMLHttpRequest();
 			xmlhttp.open("POST","/saveModel",true);
 			xmlhttp.setRequestHeader("Content-type","application/json");
-			var json = {"content" : out, "name" : document.getElementById("name").value, "picture": imgData};
+			var json = {"content" : out, "picture": imgData};
 			if (modelId != "null"){
 				json["id"] = modelId;
 			}
-			xmlhttp.send(JSON.stringify(json));
+			xmlhttp.send(JSON.stringify(json)); */
 			return out;
 		}
 		

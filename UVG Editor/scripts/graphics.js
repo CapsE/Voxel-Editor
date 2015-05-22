@@ -2,6 +2,7 @@ var colorList = {};
 var geometryList = {};
 var materials =[];
 var material = new THREE.MeshFaceMaterial(materials);
+var ambient = THREE.Vector3(1,1,1);
 
 function getMaterialIndex(color){
 	if(colorList[color] == null){

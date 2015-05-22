@@ -13,3 +13,14 @@ function makeBlock(x,y,z,c){
 	scene.add(cube);
 	return cube;
 }
+
+function mergeAllCubes(){
+    var blockKeys = Object.keys(blocks);
+    var firstBlock = blocks[blockKeys[0]];
+    
+    for(var i = 1; i < blockKeys.length; i++){
+        var b = blocks[blockKeys[i]]
+        b.updateMatrix();
+        firstBlock.geometry.merge(b.geometry, b.matrix);
+    }
+}
